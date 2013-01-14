@@ -11,6 +11,7 @@ module ActiveAdmin
 
       def active_admin_collection
         decorator = active_admin_config.decorator_class
+        binding.pry
         collection = super
         decorator ? decorator.decorate(collection) : collection
       end

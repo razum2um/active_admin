@@ -10,6 +10,7 @@ module ActiveAdmin
     def index(options={}, &block)
       super(options) do |format|
         block.call(format) if block
+        binding.pry
         format.html { render active_admin_template('index') }
         format.csv do
           headers['Content-Type'] = 'text/csv; charset=utf-8'

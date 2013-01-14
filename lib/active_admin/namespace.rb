@@ -127,7 +127,11 @@ module ActiveAdmin
     # Either returns an existing Resource instance or builds a new
     # one for the resource and options
     def find_or_build_resource(resource_class, options)
-      resources.add Resource.new(self, resource_class, options)
+      if resource_class.ancestors.include? ActiveRecord::Persistence
+        resources.add Resource.new(self, resource_class, options)
+      else
+        resources.add CrudResource.new(self, resource_class, options.merge(sortable: false))
+      end
     end
 
     def build_page(name, options)
@@ -166,7 +170,11 @@ module ActiveAdmin
     end
 
     def register_resource_controller(config)
-      eval "class ::#{config.controller_name} < ActiveAdmin::ResourceController; end"
+      if config.is_a? CrudResource
+        eval "class ::#{config.controller_name} < ActiveAdmin::CrudResourceController; end"
+      else
+        eval "class ::#{config.controller_name} < ActiveAdmin::ResourceController; end"
+      end
       config.controller.active_admin_config = config
     end
 
