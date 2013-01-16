@@ -48,7 +48,10 @@ module ActiveAdmin
           end
 
           def default_attribute_table_rows
-            resource.class.columns.collect{|column| column.name.to_sym }
+            resource_class = resource.class
+            return resource_class.column_names if resource_class.respond_to? :column_names
+            return resource_class.fields.keys.map &:to_sym if resource_class.respond_to? :fields
+            [:inspect]
           end
         end
 

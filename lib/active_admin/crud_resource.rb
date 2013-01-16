@@ -7,7 +7,13 @@ module ActiveAdmin
         ActiveSupport::Dependencies.constantize(decorator_class_name)
       else
         namespace, _, short_resource_name = resource_class_name.rpartition '::'
-        ActiveSupport::Dependencies.constantize(namespace).const_set "#{short_resource_name}Decorator", Class.new(ActiveAdmin::CrudDecorator)
+        namespace = ActiveSupport::Dependencies.constantize namespace
+        cls_name = "#{short_resource_name}Decorator"
+        if namespace.const_defined? cls_name
+          namespace.const_get cls_name
+        else
+          namespace.const_set cls_name, Class.new(ActiveAdmin::CrudDecorator)
+        end
       end
     end
 
@@ -17,6 +23,10 @@ module ActiveAdmin
 
     def resource_quoted_column_name(column)
       column
+    end
+
+    def comments?
+      false
     end
   end
 end

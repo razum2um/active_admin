@@ -16,7 +16,6 @@ module ActiveAdmin
       end
 
       def collection_is_empty?(collection=collection)
-        binding.pry
         collection_size(collection) == 0
       end
     end

@@ -8,8 +8,8 @@ module ActiveAdmin
     delegate :as_json, :collect, :map, :each, :[], :all?, :include?, :first, :last, :shift, :to => :decorated_collection
 
     def initialize(collection, decorator_class)
-      super(collection)
       @klass = decorator_class
+      super(collection)
     end
 
     %w[reorder].each do |meth|
