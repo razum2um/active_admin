@@ -1,0 +1,953 @@
+diff -r f873b3e636cb Gemfile
+--- a/Gemfile	Fri Dec 28 14:17:38 2012 +0700
++++ b/Gemfile	Thu Jan 17 08:42:31 2013 +0700
+@@ -56,14 +56,19 @@
+ gem 'globalize3'
+ gem 'cld'
+ 
++gem "mongoid", "~> 3.0.1" # должно быть выше Cancan
++# upserts: https://github.com/mongoid/mongoid/commit/3062363bad3ab947d7689502d6805652b20e89a0
++# gem "mongoid", git: 'git://github.com/mongoid/mongoid.git'
++
+ gem 'devise'
+ gem 'devise_lastseenable'
+ gem 'devise-async'
+ gem 'cancan'
+ gem 'rolify'
+-gem 'activeadmin', '~> 0.5.0'
++gem 'activeadmin', git: 'git://github.com/razum2um/active_admin', branch: 'simple_mongoid'
+ gem 'awesome_nested_set'
+ gem 'active_admin-awesome_nested_set'
++#gem 'activeadmin-mongoid', git: 'git://github.com/elia/activeadmin-mongoid.git'
+ 
+ gem 'omniauth'
+ gem 'omniauth-facebook'
+@@ -81,10 +86,6 @@
+ 
+ gem 'dalli'
+ 
+-gem "mongoid", "~> 3.0.1"
+-# upserts: https://github.com/mongoid/mongoid/commit/3062363bad3ab947d7689502d6805652b20e89a0
+-# gem "mongoid", git: 'git://github.com/mongoid/mongoid.git'
+-
+ gem 'resque', require: 'resque/server'
+ gem 'resque-dynamic-queues'
+ gem 'resque_utils'
+@@ -116,6 +117,7 @@
+ gem 'prawn'
+ 
+ #gem 'localeapp'
++gem 'meta_request', '0.2.1', group: :development
+ 
+ group :test, :development do
+   gem 'zeus'
+@@ -146,6 +148,7 @@
+ end
+ 
+ group :test, :ci do
++  gem 'capybara-screenshot'
+   gem 'equivalent-xml'
+   gem 'bson'
+   gem 'fuubar'
+diff -r f873b3e636cb Gemfile.lock
+--- a/Gemfile.lock	Fri Dec 28 14:17:38 2012 +0700
++++ b/Gemfile.lock	Thu Jan 17 08:42:31 2013 +0700
+@@ -6,6 +6,24 @@
+       i18n
+ 
+ GIT
++  remote: git://github.com/razum2um/active_admin
++  revision: 8ca5e5393986f5f364976f2fb7e3711a83096258
++  branch: simple_mongoid
++  specs:
++    activeadmin (0.5.1)
++      arbre (>= 1.0.1)
++      bourbon (>= 1.0.0)
++      devise (>= 1.1.2)
++      fastercsv
++      formtastic (>= 2.0.0)
++      inherited_resources (>= 1.3.1)
++      jquery-rails (>= 1.0.0)
++      kaminari (>= 0.13.0)
++      meta_search (>= 0.9.2)
++      rails (>= 3.0.0)
++      sass (>= 3.1.0)
++
++GIT
+   remote: git://github.com/razum2um/capistrano.git
+   revision: ff84c9796c48631d19cab583e4bf88734ea43f67
+   specs:
+@@ -73,18 +91,6 @@
+       sprockets (~> 2.1.3)
+     active_admin-awesome_nested_set (0.0.3)
+       rails (~> 3.2.5)
+-    activeadmin (0.5.1)
+-      arbre (>= 1.0.1)
+-      bourbon (>= 1.0.0)
+-      devise (>= 1.1.2)
+-      fastercsv
+-      formtastic (>= 2.0.0)
+-      inherited_resources (>= 1.3.1)
+-      jquery-rails (>= 1.0.0)
+-      kaminari (>= 0.13.0)
+-      meta_search (>= 0.9.2)
+-      rails (>= 3.0.0)
+-      sass (>= 3.1.0)
+     activemodel (3.2.8)
+       activesupport (= 3.2.8)
+       builder (~> 3.0.0)
+@@ -143,6 +149,8 @@
+       rack-test (>= 0.5.4)
+       selenium-webdriver (~> 2.0)
+       xpath (~> 0.1.4)
++    capybara-screenshot (0.3.4)
++      capybara (>= 1.0, < 3)
+     childprocess (0.3.6)
+       ffi (~> 1.0, >= 1.0.6)
+     chunky_png (1.2.6)
+@@ -299,6 +307,9 @@
+       i18n (>= 0.4.0)
+       mime-types (~> 1.16)
+       treetop (~> 1.4.8)
++    meta_request (0.2.1)
++      rack-contrib
++      rails
+     meta_search (1.1.3)
+       actionpack (~> 3.1)
+       activerecord (~> 3.1)
+@@ -407,6 +418,8 @@
+     rack (1.4.1)
+     rack-cache (1.2)
+       rack (>= 0.4)
++    rack-contrib (1.1.0)
++      rack (>= 0.9.1)
+     rack-openid (1.3.1)
+       rack (>= 1.1.0)
+       ruby-openid (>= 2.1.8)
+@@ -584,7 +597,7 @@
+     xpath (0.1.4)
+       nokogiri (~> 1.3)
+     yajl-ruby (1.1.0)
+-    zeus (0.13.1)
++    zeus (0.13.2)
+       method_source (>= 0.6.7)
+ 
+ PLATFORMS
+@@ -592,7 +605,7 @@
+ 
+ DEPENDENCIES
+   active_admin-awesome_nested_set
+-  activeadmin (~> 0.5.0)
++  activeadmin!
+   activerecord-postgres-hstore
+   airbrake
+   annotate
+@@ -605,6 +618,7 @@
+   cancan
+   capistrano!
+   capybara
++  capybara-screenshot
+   cld
+   coffee-rails (~> 3.2.1)
+   compass
+@@ -640,6 +654,7 @@
+   levenshtein
+   libnotify
+   liquid
++  meta_request (= 0.2.1)
+   mongoid (~> 3.0.1)
+   nokogiri-happymapper!
+   omniauth
+diff -r f873b3e636cb app/admin/air/bookings.rb
+--- a/app/admin/air/bookings.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/app/admin/air/bookings.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -3,7 +3,7 @@
+ ActiveAdmin.register Air::Booking do
+   
+   actions :index
+-  menu :if => proc{ can?(:read, Air::Booking) } #, parent: I18n.t('labels.admin.geo_points')
++  menu :if => proc{ can?(:read, Air::Booking) }, parent: I18n.t('labels.admin.air')
+ 
+   filter :user
+   filter :timelimit
+diff -r f873b3e636cb app/admin/air/queues.rb
+--- a/app/admin/air/queues.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/app/admin/air/queues.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -2,21 +2,15 @@
+ 
+ ActiveAdmin.register Air::Queue do
+ 
+-  config.filters = false
+-  config.paginate = false
++  actions :index
++  menu :if => proc{ can?(:read, Air::Queue) }, parent: I18n.t('labels.admin.air')
+ 
+-  actions :index
+-
+-  collection_action :index, :method => :get do
+-    def self::admin_air_queue_path(model, *args)
+-      "air_queues/#{model.id}/show"
+-    end
+-    @collection = Air::Queue.all
+-  end
+-
+-  config.filters = false
+-  config.paginate = false
+-  config.comments = false
++  #collection_action :index, :method => :get do
++  #  def self::admin_air_queue_path(model, *args)
++  #    "air_queues/#{model.id}/show"
++  #  end
++  #  @collection = Air::Queue.all
++  #end
+ 
+   member_action :show do
+     @air_queue = Air::Queue.find_by_number({queue_number: params[:id]})
+diff -r f873b3e636cb app/admin/air/tickets.rb
+--- a/app/admin/air/tickets.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/app/admin/air/tickets.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -3,7 +3,7 @@
+ ActiveAdmin.register Air::Ticket do
+   
+   actions :index
+-  menu :if => proc{ can?(:read, Air::Ticket) }
++  menu :if => proc{ can?(:read, Air::Ticket) }, parent: I18n.t('labels.admin.air')
+ 
+   config.filters = false
+   config.paginate = false
+diff -r f873b3e636cb app/admin/cities.rb
+--- a/app/admin/cities.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/app/admin/cities.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -23,10 +23,10 @@
+ 
+     if can? :create, Route
+       column t('labels.admin.rubric.air') do |city|
+-        link_to city.routes_avia.empty? ? Route.label_for_create : "Add(#{city.avia_routes.size})", admin_city_routes_path(city, :rubric_id => Rubric.avia.id)
++        link_to city.routes_avia.empty? ? Route.label_for_create : "Add(#{city.routes_avia.size})", admin_city_routes_path(city, :rubric_id => Rubric.avia.id)
+       end
+       column t('labels.admin.rubric.rail') do |city|
+-        link_to city.routes_zd.empty? ? Route.label_for_create : "Add(#{city.zd_routes.size})", admin_city_routes_path(city, :rubric_id => Rubric.zd.id)
++        link_to city.routes_zd.empty? ? Route.label_for_create : "Add(#{city.routes_zd.size})", admin_city_routes_path(city, :rubric_id => Rubric.zd.id)
+       end
+     end
+     default_actions
+diff -r f873b3e636cb app/admin/sabre/sessions.rb
+--- /dev/null	Thu Jan 01 00:00:00 1970 +0000
++++ b/app/admin/sabre/sessions.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -0,0 +1,15 @@
++ActiveAdmin.register Sabre::Session do
++
++  actions :index, :show
++  menu :if => proc{ can?(:read, Sabre::Session ) }, parent: I18n.t('labels.admin.sabre')
++
++  index do
++    column :id do |session|
++      link_to session.id, [:admin, session]
++    end
++    column :info_state
++    column :client_id
++    column :conversation_id
++    column :updated_at
++  end
++end
+diff -r f873b3e636cb app/models/abstract/admin_proxy.rb
+--- /dev/null	Thu Jan 01 00:00:00 1970 +0000
++++ b/app/models/abstract/admin_proxy.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -0,0 +1,59 @@
++# декоратор для моделей Active Admin
++# нужен на странице списка изза сильной привязанности ActiveAdmin к ActiveRecord
++# оборачивание должно происходить в collection_action
++#
++#   collection_action :index, :method => :get do
++#     @collection = AdminProxy.new(Sabre::Session.all)
++#   end
++#
++# помимо оборачивания при регистрации необходимо отключить пагинацию, фильтры и комментарии
++#
++#   ActiveAdmin.register Sabre::Session do
++#     config.filters = false
++#     config.paginate = false
++#     config.comments = false
++#     ...
++#   end
++#
++#  Декорируемый класс должен respond_to (content_columns + columns) или fields
++class AdminProxy
++  def initialize(decorated)
++    @decorated = decorated
++  end
++
++  def method_missing(meth, *args, &block)
++    @decorated.send(meth, *args, &block)
++  end
++
++  def columns
++    return @decorated.columns if @decorated.respond_to? :columns
++    return @decorated.fields.map(&:second) if @decorated.ancestors.include? Mongoid::Persistence
++    raise NotImplementedError, "#{@decorated.class} must respond_to columns | fields"
++  end
++
++  def content_columns
++    return @decorated.content_columns if @decorated.respond_to? :content_columns
++    return @decorated.fields.map(&:second).select {|f| f.name !~ /(^_|^(created|updated)_at)/} if @decorated.ancestors.include? Mongoid::Persistence
++    raise NotImplementedError, "#{@decorated.class} must respond_to content_columns | fields"
++  end
++
++  %w[clone dup reorder].each do |meth|
++    send :define_method, meth do |*args, &block|
++      self
++    end
++  end
++
++  %w[num_pages current_page total_pages].each do |meth|
++    send :define_method, meth do |*args, &block|
++      1
++    end
++  end
++
++  def limit_value
++    false
++  end
++
++  def total_count
++    @decorated.length
++  end
++end
+diff -r f873b3e636cb config/application.rb
+--- a/config/application.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/config/application.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -92,6 +92,10 @@
+     end
+     config.assets.initialize_on_precompile = true
+     config.remote_ip_keys = %w(HTTP_X_FORWARDED_FOR HTTP_X_REAL_IP REMOTE_ADDR)
+-    #config.middleware.use PryRescue::Rack if Rails.env.development?
++    config.middleware.use PryRescue::Rack if Rails.env.development?
++    #config.log_tags = [ 
++    #  lambda { |request| "uuid:#{request.uuid}" },
++    #  lambda { |request| "sid:#{request.session_options[:id]}" }
++    #]
+   end
+ end
+diff -r f873b3e636cb config/initializers/active_admin.rb
+--- a/config/initializers/active_admin.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/config/initializers/active_admin.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -129,12 +129,22 @@
+ end
+ 
+ module ActiveAdmin
++
++  class Dsl
++    def run_registration_block(&block)
++      register(*args) do
++        block.call
++      end
++    end
++  end
++
+   class BaseController
+     include UrlHelper
+-    
++
+     private
+     def second_render
+       #в админке второй рендер не нужен
+     end
++
+   end
+ end
+diff -r f873b3e636cb config/locales/en.yml
+--- a/config/locales/en.yml	Fri Dec 28 14:17:38 2012 +0700
++++ b/config/locales/en.yml	Thu Jan 17 08:42:31 2013 +0700
+@@ -59,6 +59,8 @@
+       main: Main page
+       all: All
+       statistics: Статистика переходов
++      air: Air
++      sabre: Sabre
+       geo_points: Geo points
+       admin_log: Лог доступа в админку
+       subdomain:
+@@ -361,6 +363,11 @@
+       acc:
+         one: subdomain
+         many: subdomains
++  mongoid:
++    models:
++      sabre/session:
++        one: Session
++        many: Sessions
+   activerecord:
+     models:
+       geo/city:
+diff -r f873b3e636cb config/locales/ru.yml
+--- a/config/locales/ru.yml	Fri Dec 28 14:17:38 2012 +0700
++++ b/config/locales/ru.yml	Thu Jan 17 08:42:31 2013 +0700
+@@ -59,8 +59,10 @@
+       main: Главная
+       all: Все
+       statistics: Статистика переходов
++      air: Air
++      sabre: Sabre
+       geo_points: Гео точки
+-      admin_log: Лог доступа в админку
++      admin_log: updated_at доступа в админку
+       subdomain:
+         one: Поддомен
+         many: Поддомены
+@@ -364,6 +366,11 @@
+       acc:
+         one: поддомен
+         many: поддомены
++  mongoid:
++    models:
++      sabre/session:
++        one: Сессия
++        many: Сессии
+   activerecord:
+     attributes:
+       text:
+diff -r f873b3e636cb config/sabre.yml.example
+--- a/config/sabre.yml.example	Fri Dec 28 14:17:38 2012 +0700
++++ b/config/sabre.yml.example	Thu Jan 17 08:42:31 2013 +0700
+@@ -1,6 +1,7 @@
+ production: &defaults
+   ipcc: OR3G
+-  pool: 1
++  pool: 3
++  soft_pool: 1
+   ticketing_ipcc: LM1G
+   ticketing_pool: 1
+   release_timeout: 600
+diff -r f873b3e636cb db/schema.rb
+--- a/db/schema.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/db/schema.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -17,7 +17,7 @@
+   create_schema "geo"
+   create_schema "stat"
+ 
+-  create_extension "hstore", :version => "1.1"
++  create_extension "hstore", :version => "1.0"
+ 
+   create_table "active_admin_comments", :force => true do |t|
+     t.string   "resource_id",   :null => false
+@@ -85,34 +85,6 @@
+     t.integer "city_id"
+   end
+ 
+-  create_table "airport_translations", :force => true do |t|
+-    t.integer  "airport_id"
+-    t.string   "locale"
+-    t.string   "name"
+-    t.datetime "created_at", :null => false
+-    t.datetime "updated_at", :null => false
+-  end
+-
+-  add_index "airport_translations", ["airport_id"], :name => "index_airport_translations_on_airport_id"
+-  add_index "airport_translations", ["locale"], :name => "index_airport_translations_on_locale"
+-
+-  create_table "airportts", :force => true do |t|
+-    t.string  "iata"
+-    t.string  "icao"
+-    t.text    "name"
+-    t.string  "city_rus"
+-    t.string  "city_eng"
+-    t.float   "gmt_offset"
+-    t.string  "country_rus"
+-    t.string  "country_eng"
+-    t.string  "iso_code"
+-    t.float   "latitude"
+-    t.float   "longitude"
+-    t.integer "city_id"
+-    t.integer "use",         :default => 0
+-    t.integer "skip",        :default => 0
+-  end
+-
+   create_table "billing_action_keys", :force => true do |t|
+     t.integer  "type_id"
+     t.integer  "action_id"
+@@ -426,13 +398,13 @@
+   add_index "users_roles", ["user_id", "role_id"], :name => "index_users_roles_on_user_id_and_role_id"
+ 
+   create_table "air.bookings", :force => true do |t|
+-    t.string   "state",              :default => "new"
+-    t.string   "recloc"
++    t.string   "state"
+     t.text     "ticket"
+     t.integer  "user_id"
+     t.datetime "timelimit"
+-    t.datetime "created_at",                            :null => false
+-    t.datetime "updated_at",                            :null => false
++    t.datetime "created_at",         :null => false
++    t.datetime "updated_at",         :null => false
++    t.string   "recloc"
+     t.integer  "real_price"
+     t.string   "validating_carrier"
+   end
+@@ -461,13 +433,14 @@
+     t.datetime "updated_at",          :null => false
+   end
+ 
++  add_index "air.travelers", ["booking_id"], :name => "index_air_travelers_on_booking_id"
++
+   create_table "geo.airport_translations", :force => true do |t|
+     t.integer  "geo.airport_id"
+     t.string   "locale"
+     t.string   "name"
+-    t.datetime "created_at",                        :null => false
+-    t.datetime "updated_at",                        :null => false
+-    t.boolean  "prefer",         :default => false
++    t.datetime "created_at",     :null => false
++    t.datetime "updated_at",     :null => false
+   end
+ 
+   add_index "geo.airport_translations", ["geo.airport_id"], :name => "index_5a43fb2db22b0dbea3486ceb188502c95bcc18b6"
+@@ -492,18 +465,6 @@
+     t.string   "iata",           :limit => 3
+     t.string   "icao",           :limit => 4
+     t.integer  "city_id"
+-    t.integer  "yana",                        :default => 0
+-  end
+-
+-  create_table "geo.alternatenames", :force => true do |t|
+-    t.integer "alternateNameId"
+-    t.integer "geonameid"
+-    t.string  "alternateName"
+-    t.string  "isPreferredName"
+-    t.string  "isShortName"
+-    t.string  "isColloquial"
+-    t.string  "isHistoric"
+-    t.string  "isolanguage",     :limit => 7
+   end
+ 
+   create_table "geo.cities", :force => true do |t|
+@@ -519,25 +480,19 @@
+     t.string   "admin3_code"
+     t.string   "admin4_code"
+     t.string   "timezone"
+-    t.datetime "created_at",                                 :null => false
+-    t.datetime "updated_at",                                 :null => false
+-    t.integer  "use",                         :default => 0
++    t.datetime "created_at",                    :null => false
++    t.datetime "updated_at",                    :null => false
++    t.integer  "use",            :default => 0
+     t.integer  "country_id"
+     t.integer  "region_id"
+-    t.integer  "translate",                   :default => 0
+-    t.integer  "use_translate",               :default => 0
+-    t.integer  "yana_use",                    :default => 0
+-    t.string   "iata",           :limit => 3
+-    t.integer  "airport_count",               :default => 0
+   end
+ 
+   create_table "geo.city_translations", :force => true do |t|
+     t.integer  "geo.city_id"
+     t.string   "locale"
+     t.string   "name"
+-    t.datetime "created_at",                     :null => false
+-    t.datetime "updated_at",                     :null => false
+-    t.boolean  "prefer",      :default => false
++    t.datetime "created_at",  :null => false
++    t.datetime "updated_at",  :null => false
+   end
+ 
+   add_index "geo.city_translations", ["geo.city_id"], :name => "index_2e13eec8fb8931cd7ee8187946fb4f141604bfa8"
+@@ -556,15 +511,14 @@
+     t.integer  "geo.country_id"
+     t.string   "locale"
+     t.string   "name"
+-    t.datetime "created_at",                        :null => false
+-    t.datetime "updated_at",                        :null => false
+-    t.boolean  "prefer",         :default => false
++    t.datetime "created_at",     :null => false
++    t.datetime "updated_at",     :null => false
+   end
+ 
+   add_index "geo.country_translations", ["geo.country_id"], :name => "index_c28c6547f22c619eba405d584e3edfd9e0a09e8d"
+   add_index "geo.country_translations", ["locale"], :name => "index_geonames.country_translations_on_locale"
+ 
+-  create_table "geo.ip", :id => false, :force => true do |t|
++  create_table "geo.ip", :force => true do |t|
+     t.integer "city_id",               :null => false
+     t.integer "begin_ip", :limit => 8
+     t.integer "end_ip",   :limit => 8
+@@ -586,7 +540,7 @@
+ 
+   create_table "geo.regions", :force => true do |t|
+     t.integer  "geonameid"
+-    t.string   "name",           :limit => 100
++    t.text     "name"
+     t.text     "asciiname"
+     t.text     "alternatenames"
+     t.float    "latitude"
+@@ -597,8 +551,8 @@
+     t.string   "admin3_code"
+     t.string   "admin4_code"
+     t.string   "timezone"
+-    t.datetime "created_at",                    :null => false
+-    t.datetime "updated_at",                    :null => false
++    t.datetime "created_at",     :null => false
++    t.datetime "updated_at",     :null => false
+     t.integer  "country_id"
+   end
+ 
+diff -r f873b3e636cb lib/services/sabre/configuration.rb
+--- a/lib/services/sabre/configuration.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/lib/services/sabre/configuration.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -45,6 +45,10 @@
+   #     Savon::SOAP::Fault:
+   #     (soap-env:Client.ReachedTALimit) You have reached the limit of Host TAs allocated to youс
+   #
++  # [soft_pool]
++  #   минимальное число сессий, которые не должны умирать, при превышении этого числа открывается новая,
++  #   не может быть больше #pool
++  #
+   # [ticketing_pool]
+   #   количество сессий для выписки билетов
+   #
+@@ -78,7 +82,7 @@
+     include Singleton
+ 
+     attr_accessor :ipcc, :username, :password, :endpoint_url, :base_wsdl_url, :sabre_normoaa, :release_timeout, :ticketing_ipcc
+-    attr_writer :pool, :domain, :ticketing_pool, :ptr_lniata
++    attr_writer :pool, :soft_pool, :domain, :ticketing_pool, :ptr_lniata
+ 
+     def initialize
+       YAML::load_file("#{Rails.root}/config/sabre.yml")[Rails.env].each { |k,v| self.send "#{k}=", v }
+@@ -108,7 +112,11 @@
+     end
+ 
+     def pool
+-      @pool ||= Rails.env.production? ? 25 : 1
++      @pool ||= Rails.env.production? ? 40 : 2
++    end
++
++    def soft_pool
++      @soft_pool ||= Rails.env.production? ? 10 : 1
+     end
+ 
+     def ticketing_pool
+diff -r f873b3e636cb lib/services/sabre/session.rb
+--- a/lib/services/sabre/session.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/lib/services/sabre/session.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -145,7 +145,9 @@
+ 
+       # используется для выяснения, нужны ли еще новые сессии
+       def enough?
+-        (all.count - empty.count) >= Sabre.configuration.pool
++        pool = ready.count - dead.count
++        Resque.enqueue Sabre::Requests::SessionOpener if pool >= Sabre.configuration.soft_pool
++        pool >= Sabre.configuration.pool
+       end
+ 
+       def acquire_lock_or_create!(*args)
+diff -r f873b3e636cb spec/controllers/admin/air_queues_controller_spec.rb
+--- a/spec/controllers/admin/air_queues_controller_spec.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/spec/controllers/admin/air_queues_controller_spec.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -33,4 +33,4 @@
+       expect(response.code).to eq("200")
+     end
+   end
+-end
+\ No newline at end of file
++end
+diff -r f873b3e636cb spec/controllers/admin/sabre_sessions_controller_spec.rb
+--- /dev/null	Thu Jan 01 00:00:00 1970 +0000
++++ b/spec/controllers/admin/sabre_sessions_controller_spec.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -0,0 +1,27 @@
++require "spec_helper"
++
++describe Admin::SabreSessionsController do
++  include Devise::TestHelpers
++  render_views
++
++  before (:each) do
++    @user = FactoryGirl.create(:user)
++    @user.add_role :superadmin
++    sign_in @user
++  end
++
++  describe "GET index" do
++    it "has a 200 status code" do
++      get :index
++      expect(response.code).to eq("200")
++    end
++  end
++
++  describe "GET show" do
++    it "has a 200 status code" do
++      session = FactoryGirl.create :sabre_session
++      get :show, id: session.id
++      expect(response.code).to eq("200")
++    end
++  end
++end
+diff -r f873b3e636cb spec/factories/sabre.rb
+--- a/spec/factories/sabre.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/spec/factories/sabre.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -1,3 +1,7 @@
+ FactoryGirl.define do
+-  factory :sabre_session, class: Sabre::Session
++  factory :sabre_session, class: Sabre::Session do
++    sequence :id do |n| "#{n}" end
++    state 'ready'
++    sequence :token do |n| "token-#{n}" end
++  end
+ end
+diff -r f873b3e636cb spec/factories/stat/entry_point.rb
+--- /dev/null	Thu Jan 01 00:00:00 1970 +0000
++++ b/spec/factories/stat/entry_point.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -0,0 +1,13 @@
++# encoding: UTF-8
++FactoryGirl.define do
++  factory :stat_entry_point_adwords, class: Stat::EntryPoint do
++    url_regexp 'adw'
++    name 'Adwords'
++    active true
++  end
++  factory :stat_entry_point_direct, class: Stat::EntryPoint do
++    url_regexp 'direct'
++    name 'Direct'
++    active true
++  end
++end
+diff -r f873b3e636cb spec/factories/stat/entry_source.rb
+--- /dev/null	Thu Jan 01 00:00:00 1970 +0000
++++ b/spec/factories/stat/entry_source.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -0,0 +1,18 @@
++# encoding: UTF-8
++FactoryGirl.define do
++  factory :stat_entry_source_google, class: Stat::EntrySource do
++    name 'Google'
++    referer_regexp 'google\.\w{2,4}(?:\.\w{2,4})?'
++    referer_param 'q'
++  end
++  factory :stat_entry_source_yandex, class: Stat::EntrySource do
++    name 'Yandex'
++    referer_regexp 'yandex\.[ru|ua|kz]'
++    referer_param 'text'
++  end
++  factory :stat_entry_source_rambler, class: Stat::EntrySource do
++    name 'Rambler'
++    referer_regexp 'nova\.rambler\.ru'
++    referer_param 'query'
++  end
++end
+diff -r f873b3e636cb spec/fixtures/stat.entry_points.yml
+--- a/spec/fixtures/stat.entry_points.yml	Fri Dec 28 14:17:38 2012 +0700
++++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+@@ -1,17 +0,0 @@
+----
+-stat.entry_points_001:
+-  id: '4'
+-  url_regexp: adw
+-  name: Adwords
+-  description: 
+-  active: t
+-  created_at: '2012-10-17 09:27:49.678779'
+-  updated_at: '2012-10-17 09:27:49.678779'
+-stat.entry_points_002:
+-  id: '5'
+-  url_regexp: direct
+-  name: Direct
+-  description: 
+-  active: t
+-  created_at: '2012-10-17 09:27:49.681685'
+-  updated_at: '2012-10-17 09:27:49.681685'
+diff -r f873b3e636cb spec/fixtures/stat.entry_sources.yml
+--- a/spec/fixtures/stat.entry_sources.yml	Fri Dec 28 14:17:38 2012 +0700
++++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+@@ -1,73 +0,0 @@
+----
+-stat.entry_sources_001:
+-  id: '21'
+-  name: Google
+-  referer_regexp: google\.\w{2,4}(?:\.\w{2,4})?
+-  referer_param: q
+-  description: 
+-  created_at: '2012-10-17 09:27:49.659609'
+-  updated_at: '2012-10-17 09:27:49.659609'
+-  active: t
+-stat.entry_sources_002:
+-  id: '22'
+-  name: Yandex
+-  referer_regexp: yandex\.[ru|ua|kz]
+-  referer_param: text
+-  description: 
+-  created_at: '2012-10-17 09:27:49.66519'
+-  updated_at: '2012-10-17 09:27:49.66519'
+-  active: t
+-stat.entry_sources_003:
+-  id: '23'
+-  name: Mail.ru
+-  referer_regexp: go\.mail\.ru
+-  referer_param: q
+-  description: 
+-  created_at: '2012-10-17 09:27:49.667137'
+-  updated_at: '2012-10-17 09:27:49.667137'
+-  active: t
+-stat.entry_sources_004:
+-  id: '24'
+-  name: Ask
+-  referer_regexp: (?:ru\.)?ask\.com
+-  referer_param: q
+-  description: 
+-  created_at: '2012-10-17 09:27:49.669121'
+-  updated_at: '2012-10-17 09:27:49.669121'
+-  active: t
+-stat.entry_sources_005:
+-  id: '25'
+-  name: Rambler
+-  referer_regexp: nova\.rambler\.ru
+-  referer_param: query
+-  description: 
+-  created_at: '2012-10-17 09:27:49.670958'
+-  updated_at: '2012-10-17 09:27:49.670958'
+-  active: t
+-stat.entry_sources_006:
+-  id: '26'
+-  name: bing.com
+-  referer_regexp: bing\.com
+-  referer_param: q
+-  description: 
+-  created_at: '2012-10-17 09:27:49.672856'
+-  updated_at: '2012-10-17 09:27:49.672856'
+-  active: t
+-stat.entry_sources_007:
+-  id: '27'
+-  name: nigma.ru
+-  referer_regexp: nigma\.com
+-  referer_param: s
+-  description: 
+-  created_at: '2012-10-17 09:27:49.674419'
+-  updated_at: '2012-10-17 09:27:49.674419'
+-  active: t
+-stat.entry_sources_008:
+-  id: '28'
+-  name: search.qip.ru
+-  referer_regexp: search\.qip\.ru
+-  referer_param: query
+-  description: 
+-  created_at: '2012-10-17 09:27:49.675943'
+-  updated_at: '2012-10-17 09:27:49.675943'
+-  active: t
+diff -r f873b3e636cb spec/fixtures/stat.events.yml
+--- a/spec/fixtures/stat.events.yml	Fri Dec 28 14:17:38 2012 +0700
++++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+@@ -1,22 +0,0 @@
+----
+-stat.events_001:
+-  id: '7'
+-  name: search
+-  controller: air/searches
+-  action: create
+-  created_at: '2012-10-17 09:27:49.693607'
+-  updated_at: '2012-10-17 09:27:49.693607'
+-stat.events_002:
+-  id: '8'
+-  name: booking
+-  controller: air/bookings
+-  action: create
+-  created_at: '2012-10-17 09:27:49.699001'
+-  updated_at: '2012-10-17 09:27:49.699001'
+-stat.events_003:
+-  id: '9'
+-  name: payment
+-  controller: air/payments
+-  action: create
+-  created_at: '2012-10-17 09:27:49.702541'
+-  updated_at: '2012-10-17 09:27:49.702541'
+diff -r f873b3e636cb spec/lib/services/sabre/requests/passenger_details_spec.rb
+--- a/spec/lib/services/sabre/requests/passenger_details_spec.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/spec/lib/services/sabre/requests/passenger_details_spec.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -10,7 +10,6 @@
+   it 'parses passenger data' do
+     req = Sabre::Requests::PassengerDetails.new
+     req.stub(:target).and_return(@target)
+-    binding.pry
+     expect(Gyoku.xml req.body).to be_xml_like_that %q{
+     <PostProcessing><EndTransactionRQ><EndTransaction Ind=\"true\"><Source ReceivedFrom=\"ITC\"></Source></EndTransaction></EndTransactionRQ></PostProcessing><SpecialServiceRQ HaltOnError=\"true\"><SpecialServiceInfo><Service SegmentNumber=\"A\" SSR_Code=\"DOCS\"><PersonName NameNumber=\"1\"></PersonName><Text>P/RU/12121212/RU/16JUN89/M/20DEC2013/Petr/Petrov</Text></Service></SpecialServiceInfo></SpecialServiceRQ><TravelItineraryAddInfoRQ><AgencyInfo><Ticketing TicketTimeLimit=\"12-08T08:34\" TicketType=\"7TAW\"></Ticketing></AgencyInfo><CustomerInfo><ContactNumbers><ContactNumber NameNumber=\"1.1\" Phone=\"35-35-35\" PhoneUseType=\"H\"></ContactNumber></ContactNumbers><Email Address=\"male@yourticket.com\" NameNumber=\"1.1\"></Email><PersonName NameNumber=\"1.1\" Infant=\"false\"><GivenName>Petr</GivenName><Surname>Petrov</Surname></PersonName></CustomerInfo></TravelItinerary
+     }
+diff -r f873b3e636cb spec/models/stat/entry_point_spec.rb
+--- a/spec/models/stat/entry_point_spec.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/spec/models/stat/entry_point_spec.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -3,14 +3,13 @@
+ require 'spec_helper'
+ 
+ describe Stat::EntryPoint do
++
+   before do
++    FactoryGirl.create(:stat_entry_point_direct)
++    FactoryGirl.create(:stat_entry_point_adwords)
+     @unknown = "http://твойбилет.рф?smth"
+   end
+ 
+-  it 'loads fixtures' do
+-    expect(Stat::EntryPoint.count).to eq 2
+-  end
+-
+   {
+     'Adwords' => 'http://твойбилет.рф?adw',
+     'Direct' => 'http://твойбилет.рф?direct',
+diff -r f873b3e636cb spec/models/stat/entry_source_spec.rb
+--- a/spec/models/stat/entry_source_spec.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/spec/models/stat/entry_source_spec.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -4,13 +4,12 @@
+ 
+ describe Stat::EntrySource do
+   before do
++    FactoryGirl.create(:stat_entry_source_google)
++    FactoryGirl.create(:stat_entry_source_yandex)
++    FactoryGirl.create(:stat_entry_source_rambler)
+     @unknown = "http://asd.wiki.ru?btnG=%D0%9D%D0%B0%D0%B9%D1%82%D0%B8!&query=#{URI.encode 'авиабилеты'}"
+   end
+ 
+-  it 'loads fixtures' do
+-    expect(Stat::EntrySource.count).to eq 8
+-  end
+-
+   {
+     "Yandex" => "http://yandex.ru/yandsearch?text=#{URI.encode 'авиа билеты'}",
+     "Google" => "http://www.google.ru/?hl=ru&gs_nf=1&cp=17&gs_id=ck&xhr=t&q=#{URI.encode 'авиа билеты'}",
+diff -r f873b3e636cb spec/requests/admin/sabre_sessions_spec.rb
+--- /dev/null	Thu Jan 01 00:00:00 1970 +0000
++++ b/spec/requests/admin/sabre_sessions_spec.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -0,0 +1,28 @@
++require "spec_helper"
++
++describe 'Sabre sessions in admin' do
++  before do
++    @user = sign_in_as :superadmin
++  end
++
++  def create_sabre_session
++    FactoryGirl.create :sabre_session
++  end
++
++  describe "GET index" do
++    it "has a sabre session table" do
++      create_sabre_session
++      visit admin_sabre_sessions_path
++      expect(page).to have_content "normal"
++      expect(page).to have_content "Displaying 1 sabre/session"
++    end
++  end
++
++  describe "GET show" do
++    it "has a sabre attributes table" do
++      session = create_sabre_session
++      visit admin_sabre_session_path(session)
++      expect(page).to have_content "State ready"
++    end
++  end
++end
+diff -r f873b3e636cb spec/spec_helper.rb
+--- a/spec/spec_helper.rb	Fri Dec 28 14:17:38 2012 +0700
++++ b/spec/spec_helper.rb	Thu Jan 17 08:42:31 2013 +0700
+@@ -22,7 +22,6 @@
+   RSpec.configure do |config|
+     config.mock_with :rspec
+     config.fixture_path = "#{::Rails.root}/spec/fixtures"
+-    config.global_fixtures = :all
+ 
+     # see support/active_record
+     config.use_transactional_fixtures = ActiveRecord::Base.respond_to?(:shared_connection)
